@@ -41,7 +41,7 @@ if ($result->num_rows === 1) {
         $_SESSION["email"] = $reader["email"];
         $_SESSION["role"] = "reader";
 
-        header("Location: dashboard.php");
+        header("Location: reader_home.php");
         exit();
     }
 }

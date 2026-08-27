@@ -7,7 +7,7 @@ if (!isset($_SESSION["user_id"])) {
     exit();
 }
 
-$categories = $conn->query("SELECT Category_ID, Category_Name FROM CATEGORY ORDER BY Category_Name");
+$categories = $conn->query("SELECT Category_ID, Category_Name FROM CATEGORY ORDER BY Category_ID ASC");
 $articles = $conn->query("SELECT a.Title, a.Content, c.Category_Name FROM ARTICLE a JOIN CATEGORY c ON c.Category_ID = a.Category_ID WHERE a.Status = 'Published' ORDER BY c.Category_Name, a.Published_At DESC");
 ?>
 <!DOCTYPE html>

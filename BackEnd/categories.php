@@ -15,7 +15,7 @@ $articles = $conn->query("SELECT a.Title, a.Content, c.Category_Name FROM ARTICL
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Article Categories</title><link rel="stylesheet" href="style.css"></head>
 <body class="dashboard-body">
 <main class="dashboard">
-    <header class="dashboard-header"><div><p class="eyebrow">THE DAILY NEWS</p><h1>Article categories</h1></div><a class="button-link" href="dashboard.php">Dashboard</a></header>
+    <header class="dashboard-header"><div><p class="eyebrow">THE DAILY NEWS</p><h1>Article categories</h1></div><div><a class="button-link" href="reader_home.php">Back</a> <a class="button-link" href="dashboard.php">Dashboard</a></div></header>
     <section><div class="section-heading"><h2>Categories</h2></div><div class="table-wrap"><table><tr><th>ID</th><th>Category</th></tr><?php while ($category = $categories->fetch_assoc()): ?><tr><td><?= (int) $category["Category_ID"] ?></td><td><?= htmlspecialchars($category["Category_Name"]) ?></td></tr><?php endwhile; ?></table></div></section>
     <section><div class="section-heading"><h2>Published articles by category</h2></div><?php while ($article = $articles->fetch_assoc()): ?><article class="article"><span class="category"><?= htmlspecialchars($article["Category_Name"]) ?></span><h3><?= htmlspecialchars($article["Title"]) ?></h3><p><?= nl2br(htmlspecialchars($article["Content"])) ?></p></article><?php endwhile; ?></section>
 </main>

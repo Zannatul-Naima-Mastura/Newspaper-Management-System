@@ -412,6 +412,7 @@ $result = $stmt->get_result();
                 Subscription
             </a>
 
+<<<<<<< HEAD
             <a href="categories.php">
                 Categories
             </a>
@@ -420,6 +421,8 @@ $result = $stmt->get_result();
                 Comments
             </a>
 
+=======
+>>>>>>> origin/Tirtho
             <a href="dashboard.php">
                 Dashboard
             </a>

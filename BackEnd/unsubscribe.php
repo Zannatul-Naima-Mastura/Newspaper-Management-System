@@ -9,6 +9,9 @@ require_once "dbConnect.php";
 |--------------------------------------------------------------------------
 | Security Check
 |--------------------------------------------------------------------------
+|
+| Only registered readers can unsubscribe.
+|
 */
 
 if (
@@ -18,8 +21,13 @@ if (
 ) {
 
     header("Location: login.php");
+
     exit();
+
 }
+
+
+$reader_id = $_SESSION["user_id"];
 
 
 /*
@@ -35,11 +43,11 @@ if (
 ) {
 
     header("Location: subscription.php");
+
     exit();
+
 }
 
-
-$reader_id = $_SESSION["user_id"];
 
 $subscription_id =
     (int)$_GET["id"];
@@ -47,25 +55,23 @@ $subscription_id =
 
 /*
 |--------------------------------------------------------------------------
-| Unsubscribe Only This Reader's Subscription
+| DELETE Subscription
 |--------------------------------------------------------------------------
 |
-| We update the status instead of deleting the record.
+| We delete ONLY the subscription belonging
+| to the currently logged-in reader.
 |
 */
 
-$sql = "UPDATE READER_SUBSCRIPTION
-
-        SET Status = 'Inactive'
+$sql = "DELETE FROM READER_SUBSCRIPTION
 
         WHERE Reader_ID = ?
 
-        AND Subscription_ID = ?
-
-        AND Status = 'Active'";
+        AND Subscription_ID = ?";
 
 
-$stmt = $conn->prepare($sql);
+$stmt =
+    $conn->prepare($sql);
 
 
 if (!$stmt) {
@@ -90,18 +96,18 @@ $stmt->execute();
 
 /*
 |--------------------------------------------------------------------------
-| Check Whether Anything Was Updated
+| Check Result
 |--------------------------------------------------------------------------
 */
 
-if ($stmt->affected_rows === 0) {
+if ($stmt->affected_rows > 0) {
 
     $stmt->close();
 
     echo "<script>
 
             alert(
-                'No active subscription was found.'
+                'You have successfully unsubscribed.'
             );
 
             window.location.href =
@@ -114,19 +120,19 @@ if ($stmt->affected_rows === 0) {
 }
 
 
-$stmt->close();
-
-
 /*
 |--------------------------------------------------------------------------
-| Success
+| No Subscription Found
 |--------------------------------------------------------------------------
 */
+
+$stmt->close();
+
 
 echo "<script>
 
         alert(
-            'You have successfully unsubscribed.'
+            'No subscription was found.'
         );
 
         window.location.href =

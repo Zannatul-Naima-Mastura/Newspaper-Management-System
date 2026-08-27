@@ -122,7 +122,7 @@
         </div>
 
 
-        <form id="loginForm">
+            <form id="loginForm" action="../BackEnd/authenticate.php" method="POST">
 
             <div class="form-group">
 
@@ -133,6 +133,7 @@
                 <input
                     type="email"
                     id="email"
+                    name="login"
                     placeholder="Enter your email"
                     required
                 >
@@ -149,6 +150,7 @@
                 <input
                     type="password"
                     id="password"
+                    name="password"
                     placeholder="Enter your password"
                     required
                 >
@@ -182,37 +184,6 @@
 
     </div>
 
-
-    <script>
-
-        document
-            .getElementById("loginForm")
-            .addEventListener("submit", function(event) {
-
-                event.preventDefault();
-
-                const email =
-                    document.getElementById("email").value;
-
-                const password =
-                    document.getElementById("password").value;
-
-                /*
-                 * The backend will be connected here.
-                 *
-                 * For now this only demonstrates
-                 * the login interface.
-                 */
-
-                console.log("Email:", email);
-                console.log("Password:", password);
-
-                document.getElementById("message").innerHTML =
-                    "Connecting to server...";
-
-            });
-
-    </script>
 
 </body>
 

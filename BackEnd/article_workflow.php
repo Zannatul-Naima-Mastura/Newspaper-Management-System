@@ -8,6 +8,7 @@ if (!isset($_SESSION["user_id"]) || !in_array($_SESSION["role"], ["reporter", "e
 }
 
 $role = $_SESSION["role"];
+$backUrl = $role === "reporter" ? "reporter_dashboard.php" : "editor_dashboard.php";
 $message = "";
 $statuses = ["Draft", "Reviewed", "Published", "Rejected"];
 if ($_SERVER["REQUEST_METHOD"] === "POST" && in_array($role, ["editor", "admin"], true)) {
@@ -42,7 +43,7 @@ $articles = $conn->query($sql);
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Article Workflow</title><link rel="stylesheet" href="style.css"></head>
 <body class="dashboard-body">
 <main class="dashboard">
-    <header class="dashboard-header"><div><p class="eyebrow">THE DAILY NEWS</p><h1>Article workflow</h1></div><a class="button-link" href="dashboard.php">Dashboard</a></header>
+    <header class="dashboard-header"><div><p class="eyebrow">THE DAILY NEWS</p><h1>Article workflow</h1></div><div><a class="button-link" href="<?= $backUrl ?>">Back</a> <a class="button-link" href="dashboard.php">Dashboard</a></div></header>
     <?php if ($message): ?><p class="notice success"><?= htmlspecialchars($message) ?></p><?php endif; ?>
     <section><div class="table-wrap"><table><tr><th>Article</th><th>Category</th><th>Status</th><th>Change</th></tr><?php while ($article = $articles->fetch_assoc()): ?><tr><td><?= htmlspecialchars($article["Title"]) ?></td><td><?= htmlspecialchars($article["Category_Name"]) ?></td><td><span class="status"><?= htmlspecialchars($article["Status"]) ?></span></td><td><?php if (in_array($role, ["editor", "admin"], true)): ?><form method="post" class="inline-form"><input type="hidden" name="article_id" value="<?= (int) $article["Article_ID"] ?>"><select name="status"><?php foreach ($statuses as $status): ?><option <?= $status === $article["Status"] ? "selected" : "" ?>><?= $status ?></option><?php endforeach; ?></select><button type="submit">Update</button></form><?php else: ?>Awaiting editorial review<?php endif; ?></td></tr><?php endwhile; ?></table></div></section>
 </main>

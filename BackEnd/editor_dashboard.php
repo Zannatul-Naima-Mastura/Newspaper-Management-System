@@ -41,7 +41,7 @@ $sql = "SELECT
         LEFT JOIN CATEGORY c
             ON a.Category_ID = c.Category_ID
 
-        WHERE a.Status = 'Pending'
+        WHERE a.Status = 'Reviewed'
 
         ORDER BY a.Created_At ASC";
 
@@ -525,6 +525,12 @@ $reviewed_result =
             Review submitted articles and manage publication.
         </p>
 
+        <p>
+            <a href="article_workflow.php">Article Workflow</a>
+            <a href="comment_moderation.php">Comment Moderation</a>
+            <a href="categories.php">Categories</a>
+        </p>
+
     </div>
 
 
@@ -641,7 +647,7 @@ $reviewed_result =
 
 
     <!-- =================================================
-         PENDING ARTICLES
+         ARTICLES AWAITING REVIEW
     ================================================= -->
 
     <section class="section">
@@ -793,7 +799,7 @@ $reviewed_result =
 
                                 <span class="status pending">
 
-                                    Pending
+                                    Reviewed
 
                                 </span>
 

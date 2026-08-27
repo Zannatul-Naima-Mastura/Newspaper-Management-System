@@ -95,7 +95,7 @@ while ($article = $result->fetch_assoc()) {
             $draft_count++;
             break;
 
-        case "pending":
+        case "reviewed":
             $pending_count++;
             break;
 
@@ -665,6 +665,13 @@ while ($article = $result->fetch_assoc()) {
 
         </a>
 
+        <a href="article_workflow.php"
+           class="create-button">
+
+            Article Workflow
+
+        </a>
+
     </section>
 
 
@@ -709,7 +716,7 @@ while ($article = $result->fetch_assoc()) {
             </div>
 
             <div class="stat-label">
-                Pending Review
+                Reviewed
             </div>
 
         </div>
@@ -871,7 +878,7 @@ while ($article = $result->fetch_assoc()) {
                                     $status_class =
                                         "status-draft";
 
-                                } elseif ($status === "pending") {
+                                } elseif ($status === "reviewed") {
 
                                     $status_class =
                                         "status-pending";
@@ -1074,11 +1081,11 @@ while ($article = $result->fetch_assoc()) {
 
                                     /*
                                     ---------------------------------
-                                    PENDING
+                                    REVIEWED
                                     ---------------------------------
                                     */
 
-                                    if ($status === "pending"):
+                                    if ($status === "reviewed"):
 
                                     ?>
 

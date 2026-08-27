@@ -114,7 +114,7 @@ if ($status !== "draft" && $status !== "rejected") {
 
 /*
 |--------------------------------------------------------------------------
-| Change Status to Pending
+| Change Status to Reviewed
 |--------------------------------------------------------------------------
 |
 | The article is now waiting for an editor.
@@ -125,7 +125,7 @@ if ($status !== "draft" && $status !== "rejected") {
 */
 
 $update_sql = "UPDATE ARTICLE
-               SET Status = 'Pending',
+               SET Status = 'Reviewed',
                    Editor_ID = NULL,
                    Reviewed_At = NULL,
                    Published_At = NULL,

@@ -84,6 +84,9 @@ CREATE TABLE ARTICLE (
 
     FOREIGN KEY (Category_ID)
         REFERENCES CATEGORY(Category_ID)
+
+    ,CONSTRAINT chk_article_status
+        CHECK (Status IN ('Draft', 'Reviewed', 'Published', 'Rejected'))
 );
 
 
@@ -181,7 +184,10 @@ CREATE TABLE COMMENT (
         REFERENCES REGISTERED_READER(Reader_ID),
 
     FOREIGN KEY (Article_ID)
-        REFERENCES ARTICLE(Article_ID)
+        REFERENCES ARTICLE(Article_ID),
+
+    CONSTRAINT chk_comment_status
+        CHECK (Status IN ('Pending', 'Approved', 'Flagged'))
 );
 
 
@@ -327,7 +333,7 @@ VALUES
     'Several new economic policies are expected to influence businesses and investors in the coming months.',
     '2026-08-18 09:30:00',
     NULL,
-    'Pending',
+    'Reviewed',
     NULL,
     NULL,
     NULL,
@@ -470,10 +476,10 @@ VALUES
 INSERT INTO COMMENT
 (Comment_ID, Reader_ID, Article_ID, Comment_Text, Time_Stamp, Status)
 VALUES
-(1, 10001, 1001, 'Very informative article.', '2026-08-16 14:20:00', 'Visible'),
-(2, 10002, 1001, 'Technology is definitely changing education.', '2026-08-16 15:10:00', 'Visible'),
-(3, 10003, 1002, 'Looking forward to the tournament.', '2026-08-17 18:00:00', 'Visible'),
-(4, 10001, 1004, 'This initiative could be very useful.', '2026-08-19 13:00:00', 'Visible');
+(1, 10001, 1001, 'Very informative article.', '2026-08-16 14:20:00', 'Approved'),
+(2, 10002, 1001, 'Technology is definitely changing education.', '2026-08-16 15:10:00', 'Approved'),
+(3, 10003, 1002, 'Looking forward to the tournament.', '2026-08-17 18:00:00', 'Approved'),
+(4, 10001, 1004, 'This initiative could be very useful.', '2026-08-19 13:00:00', 'Approved');
 
 
 -- =========================================================
@@ -537,3 +543,5 @@ UPDATE EDITOR
 SET Password = 'editor789'
 WHERE Staff_ID = 203;
 
+
+ALTER TABLE ARTICLE MODIFY Article_ID INT AUTO_INCREMENT;

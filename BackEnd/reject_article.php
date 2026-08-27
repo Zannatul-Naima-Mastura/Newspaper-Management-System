@@ -88,7 +88,7 @@ $sql = "UPDATE ARTICLE
             Editors_Feedback = ?
 
         WHERE Article_ID = ?
-        AND Status = 'Pending'";
+        AND Status = 'Reviewed'";
 
 
 $stmt = $conn->prepare($sql);

@@ -60,7 +60,7 @@ $article_id = (int) $article_id;
 |
 | IMPORTANT:
 |
-| Status must still be Pending.
+| Status must still be Reviewed.
 |
 | This prevents an article from being approved
 | twice or changing an already published article.
@@ -76,7 +76,7 @@ $sql = "UPDATE ARTICLE
             Editors_Feedback = ?
 
         WHERE Article_ID = ?
-        AND Status = 'Pending'";
+        AND Status = 'Reviewed'";
 
 
 $stmt = $conn->prepare($sql);

@@ -272,7 +272,7 @@ INSERT INTO ADVERTISEMENT
 VALUES
 (1, 'TechWorld', 30, 'Active', 1),
 (2, 'Fresh Foods BD', 15, 'Active', 1),
-(3, 'Smart Electronics', 45, 'Pending', 2),
+(3, 'Smart Electronics', 45, 'Reviewed', 2),
 (4, 'EduCare', 30, 'Active', 2);
 
 

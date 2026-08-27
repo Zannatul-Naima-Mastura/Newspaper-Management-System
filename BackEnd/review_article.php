@@ -59,7 +59,7 @@ $sql = "SELECT
             ON a.Category_ID = c.Category_ID
 
         WHERE a.Article_ID = ?
-        AND a.Status = 'Pending'";
+        AND a.Status = 'Reviewed'";
 
 
 $stmt = $conn->prepare($sql);
@@ -616,61 +616,53 @@ if (!$article) {
 
 
         <form
-            method="POST"
-            action="approve_article.php"
-            onsubmit="return confirm('Approve this article and publish it?');"
+  	  method="POST"
+  	  action="approve_article.php"
+	>
+
+   	 <input
+   	     type="hidden"
+   	     name="article_id"
+  	      value="<?php echo $article["Article_ID"]; ?>"
+ 	   >
+	
+   	 <label for="feedback">
+  	      Editor's Feedback
+ 	   </label>
+
+  	  <br><br>
+
+ 	   <textarea
+  		id="feedback"
+	  	name="feedback"
+       		 placeholder="Optional feedback for the reporter..."
+  	  ></textarea>
+
+   	 <div class="actions">
+
+     	   <!-- APPROVE -->
+    	    <button
+        	    type="submit"
+            	class="button approve"
+            	onclick="return confirm('Approve this article and publish it?');"
+        	>
+            	✓ Approve & Publish
+	        </button>
+
+
+        	<!-- REJECT -->
+        	<button
+            type="submit"
+            formaction="reject_article.php"
+            class="button reject"
+            onclick="return confirm('Reject this article?');"
         >
+            ✕ Reject
+        </button>
 
-            <input
-                type="hidden"
-                name="article_id"
-                value="<?php echo $article["Article_ID"]; ?>"
-            >
+    </div>
 
-
-            <label for="feedback">
-                Editor's Feedback
-            </label>
-
-
-            <br><br>
-
-
-            <textarea
-                id="feedback"
-                name="feedback"
-                placeholder="Optional feedback for the reporter..."
-            ></textarea>
-
-
-            <div class="actions">
-
-
-                <button
-                    type="submit"
-                    class="button approve"
-                >
-
-                    ✓ Approve & Publish
-
-                </button>
-
-
-                <button
-                    type="submit"
-                    formaction="reject_article.php"
-                    class="button reject"
-                    onclick="return confirm('Reject this article?');"
-                >
-
-                    ✕ Reject
-
-                </button>
-
-
-            </div>
-
-        </form>
+</form>
 
 
     </section>

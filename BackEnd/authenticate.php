@@ -22,7 +22,7 @@ $password = $_POST["password"];
 
 $sql = "SELECT reader_id, name, email, password
         FROM registered_reader
-        WHERE email = ?";
+        WHERE email = ? AND status = 'Active'";
 
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("s", $login);
@@ -107,7 +107,7 @@ if ($result->num_rows === 1) {
         $_SESSION["email"] = $reporter["Email"];
         $_SESSION["role"] = "reporter";
 
-        header("Location: reporter_dashboard.php");
+        header("Location: dashboard.php");
         exit();
     }
 }
@@ -140,7 +140,7 @@ if ($result->num_rows === 1) {
         $_SESSION["email"] = $editor["Email"];
         $_SESSION["role"] = "editor";
 
-        header("Location: editor_dashboard.php");
+        header("Location: dashboard.php");
         exit();
     }
 }

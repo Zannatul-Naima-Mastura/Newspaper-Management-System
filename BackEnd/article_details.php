@@ -155,6 +155,27 @@ if (
     $bookmark_stmt->close();
 }
 
+/*
+|--------------------------------------------------------------------------
+| Get Advertisement for This Article
+|--------------------------------------------------------------------------
+*/
+
+$ad_sql = "SELECT
+              Advertisement_ID,
+              Brand,
+              Duration
+           FROM ADVERTISEMENT
+           WHERE Article_ID = ?
+           AND Status = 'Active'
+           ORDER BY Advertisement_ID DESC";
+
+$ad_stmt = $conn->prepare($ad_sql);
+$ad_stmt->bind_param("i", $article_id);
+$ad_stmt->execute();
+
+$ad_result = $ad_stmt->get_result();
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -297,6 +318,33 @@ if (
             color: #666;
         }
 
+.advertisement {
+    background: #fff;
+    border: 1px solid #ddd;
+    padding: 20px;
+    margin: 25px 0;
+    text-align: center;
+    border-radius: 8px;
+}
+
+.ad-label {
+    font-size: 11px;
+    color: #777;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+
+.advertisement h3 {
+    font-size: 22px;
+    margin-bottom: 8px;
+}
+
+.advertisement p {
+    color: #777;
+}
+
+
+
     </style>
 
 </head>
@@ -399,6 +447,28 @@ if (
             <?php endwhile; ?>
 
         </div>
+
+
+<?php if ($ad_result->num_rows > 0): ?>
+
+    <?php while ($ad = $ad_result->fetch_assoc()): ?>
+
+        <div class="advertisement">
+            <div class="ad-label">ADVERTISEMENT</div>
+
+            <h3>
+                <?php echo htmlspecialchars($ad["Brand"]); ?>
+            </h3>
+
+            <p>
+                Sponsored advertisement
+            </p>
+        </div>
+
+    <?php endwhile; ?>
+
+<?php endif; ?>
+
 
 
         <div class="content">

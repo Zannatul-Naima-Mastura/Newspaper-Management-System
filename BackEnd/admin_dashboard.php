@@ -1,14 +1,14 @@
+```php
 <?php
 
 session_start();
-
 require_once "dbConnect.php";
+
 
 /*
 |--------------------------------------------------------------------------
-| SECURITY CHECK
+| ADMIN SECURITY CHECK
 |--------------------------------------------------------------------------
-| Only logged-in admins can access this page.
 */
 
 if (
@@ -19,7 +19,7 @@ if (
     exit();
 }
 
-$admin_name = $_SESSION["name"];
+
 $admin_id = $_SESSION["user_id"];
 
 $message = "";
@@ -28,89 +28,124 @@ $error = "";
 
 /*
 |--------------------------------------------------------------------------
+| HANDLE ADMIN ACTIONS
+|--------------------------------------------------------------------------
+*/
+
+
+/*
+|--------------------------------------------------------------------------
 | ADD ADVERTISEMENT
 |--------------------------------------------------------------------------
 */
 
-if (
-    $_SERVER["REQUEST_METHOD"] === "POST" &&
-    isset($_POST["add_advertisement"])
-) {
+if (isset($_POST["add_advertisement"])) {
 
     $brand = trim($_POST["brand"] ?? "");
-    $duration = $_POST["duration"] ?? "";
-    $status = $_POST["status"] ?? "Active";
+  
+    $status = $_POST["status"] ?? "Pending";
+    $article_id = intval($_POST["article_id"] ?? 0);
 
-    if ($brand === "") {
 
-        $error = "Brand name is required.";
+    if (
+        $brand === "" ||
+        
+        $article_id <= 0
+    ) {
 
-    } elseif (!is_numeric($duration) || $duration <= 0) {
-
-        $error = "Duration must be a positive number.";
+        $error = "Please provide all advertisement information.";
 
     } else {
 
         /*
-        |--------------------------------------------------------------------------
-        | Generate next Advertisement ID
-        |--------------------------------------------------------------------------
+        | Check that the selected article exists
+        | and is published.
         */
 
-        $id_result = $conn->query(
-            "SELECT COALESCE(MAX(Advertisement_ID), 0) + 1 AS next_id
-             FROM ADVERTISEMENT"
+        $check = $conn->prepare("
+            SELECT Article_ID
+            FROM ARTICLE
+            WHERE Article_ID = ?
+            AND Status = 'Published'
+        ");
+
+        $check->bind_param(
+            "i",
+            $article_id
         );
 
-        $next_id = $id_result->fetch_assoc()["next_id"];
+        $check->execute();
+
+        $result = $check->get_result();
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Insert Advertisement
-        |--------------------------------------------------------------------------
-        */
+        if ($result->num_rows !== 1) {
 
-        $sql = "INSERT INTO ADVERTISEMENT
-                (
-                    Advertisement_ID,
-                    Brand,
-                    Duration,
-                    Status,
-                    Admin_ID
-                )
-                VALUES
-                (?, ?, ?, ?, ?)";
-
-        $stmt = $conn->prepare($sql);
-
-        if (!$stmt) {
-
-            $error = "Database error: " . $conn->error;
+            $error = "Selected article does not exist or is not published.";
 
         } else {
 
+            /*
+            | Generate next Advertisement ID.
+            */
+
+            $id_result = $conn->query("
+                SELECT
+                    COALESCE(MAX(Advertisement_ID), 0) + 1
+                    AS next_id
+                FROM ADVERTISEMENT
+            ");
+
+            $next_id =
+                $id_result->fetch_assoc()["next_id"];
+
+
+            /*
+            | Insert advertisement.
+            */
+
+            $stmt = $conn->prepare("
+                INSERT INTO ADVERTISEMENT
+                (
+                    Advertisement_ID,
+                    Brand,
+                   
+                    Status,
+                    Admin_ID,
+                    Article_ID
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+            ");
+
             $stmt->bind_param(
-                "isisi",
+                "isissi",
                 $next_id,
                 $brand,
-                $duration,
+                
                 $status,
-                $admin_id
+                $admin_id,
+                $article_id
             );
+
 
             if ($stmt->execute()) {
 
-                $message = "Advertisement added successfully.";
+                $message =
+                    "Advertisement added successfully.";
 
             } else {
 
-                $error = "Unable to add advertisement: "
+                $error =
+                    "Unable to add advertisement: "
                     . $stmt->error;
             }
 
+
             $stmt->close();
         }
+
+
+        $check->close();
     }
 }
 
@@ -121,65 +156,83 @@ if (
 |--------------------------------------------------------------------------
 */
 
-if (
-    $_SERVER["REQUEST_METHOD"] === "POST" &&
-    isset($_POST["edit_advertisement"])
-) {
+if (isset($_POST["edit_advertisement"])) {
 
     $advertisement_id =
-        $_POST["advertisement_id"] ?? "";
+        intval($_POST["advertisement_id"] ?? 0);
 
     $brand =
         trim($_POST["brand"] ?? "");
 
-    $duration =
-        $_POST["duration"] ?? "";
+    
 
     $status =
-        $_POST["status"] ?? "Active";
+        $_POST["status"] ?? "Pending";
+
+    $article_id =
+        intval($_POST["article_id"] ?? 0);
 
 
-    if (!is_numeric($advertisement_id)) {
+    if (
+        $advertisement_id <= 0 ||
+        $brand === "" ||
+        
+        $article_id <= 0
+    ) {
 
-        $error = "Invalid advertisement ID.";
-
-    } elseif ($brand === "") {
-
-        $error = "Brand name is required.";
-
-    } elseif (!is_numeric($duration) || $duration <= 0) {
-
-        $error = "Duration must be a positive number.";
+        $error =
+            "Please provide all advertisement information.";
 
     } else {
 
-        $advertisement_id = (int)$advertisement_id;
-        $duration = (int)$duration;
+        /*
+        | Make sure selected article is published.
+        */
+
+        $check = $conn->prepare("
+            SELECT Article_ID
+            FROM ARTICLE
+            WHERE Article_ID = ?
+            AND Status = 'Published'
+        ");
+
+        $check->bind_param(
+            "i",
+            $article_id
+        );
+
+        $check->execute();
+
+        $result =
+            $check->get_result();
 
 
-        $sql = "UPDATE ADVERTISEMENT
-                SET Brand = ?,
-                    Duration = ?,
-                    Status = ?,
-                    Admin_ID = ?
-                WHERE Advertisement_ID = ?";
+        if ($result->num_rows !== 1) {
 
-        $stmt = $conn->prepare($sql);
-
-        if (!$stmt) {
-
-            $error = "Database error: " . $conn->error;
+            $error =
+                "Selected article does not exist or is not published.";
 
         } else {
+
+            $stmt = $conn->prepare("
+                UPDATE ADVERTISEMENT
+                SET
+                    Brand = ?,
+                    
+                    Status = ?,
+                    Article_ID = ?
+                WHERE Advertisement_ID = ?
+            ");
 
             $stmt->bind_param(
                 "sisii",
                 $brand,
-                $duration,
+                
                 $status,
-                $admin_id,
+                $article_id,
                 $advertisement_id
             );
+
 
             if ($stmt->execute()) {
 
@@ -193,8 +246,12 @@ if (
                     . $stmt->error;
             }
 
+
             $stmt->close();
         }
+
+
+        $check->close();
     }
 }
 
@@ -205,52 +262,121 @@ if (
 |--------------------------------------------------------------------------
 */
 
-if (
-    $_SERVER["REQUEST_METHOD"] === "POST" &&
-    isset($_POST["delete_advertisement"])
-) {
+if (isset($_POST["delete_advertisement"])) {
 
     $advertisement_id =
-        $_POST["advertisement_id"] ?? "";
+        intval($_POST["advertisement_id"] ?? 0);
 
-    if (!is_numeric($advertisement_id)) {
 
-        $error = "Invalid advertisement ID.";
+    if ($advertisement_id > 0) {
 
-    } else {
+        $stmt = $conn->prepare("
+            DELETE FROM ADVERTISEMENT
+            WHERE Advertisement_ID = ?
+        ");
 
-        $advertisement_id = (int)$advertisement_id;
+        $stmt->bind_param(
+            "i",
+            $advertisement_id
+        );
 
-        $sql = "DELETE FROM ADVERTISEMENT
-                WHERE Advertisement_ID = ?";
 
-        $stmt = $conn->prepare($sql);
+        if ($stmt->execute()) {
 
-        if (!$stmt) {
-
-            $error = "Database error: " . $conn->error;
+            $message =
+                "Advertisement deleted successfully.";
 
         } else {
 
-            $stmt->bind_param(
-                "i",
-                $advertisement_id
-            );
-
-            if ($stmt->execute()) {
-
-                $message =
-                    "Advertisement deleted successfully.";
-
-            } else {
-
-                $error =
-                    "Unable to delete advertisement: "
-                    . $stmt->error;
-            }
-
-            $stmt->close();
+            $error =
+                "Unable to delete advertisement: "
+                . $stmt->error;
         }
+
+
+        $stmt->close();
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| APPROVE COMMENT
+|--------------------------------------------------------------------------
+*/
+
+if (isset($_POST["approve_comment"])) {
+
+    $comment_id =
+        intval($_POST["comment_id"] ?? 0);
+
+
+    if ($comment_id > 0) {
+
+        $stmt = $conn->prepare("
+            UPDATE `COMMENT`
+            SET Status = 'Approved'
+            WHERE Comment_ID = ?
+        ");
+
+        $stmt->bind_param(
+            "i",
+            $comment_id
+        );
+
+        if ($stmt->execute()) {
+
+            $message =
+                "Comment approved successfully.";
+
+        } else {
+
+            $error =
+                "Unable to approve comment.";
+        }
+
+        $stmt->close();
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| FLAG COMMENT
+|--------------------------------------------------------------------------
+*/
+
+if (isset($_POST["flag_comment"])) {
+
+    $comment_id =
+        intval($_POST["comment_id"] ?? 0);
+
+
+    if ($comment_id > 0) {
+
+        $stmt = $conn->prepare("
+            UPDATE `COMMENT`
+            SET Status = 'Flagged'
+            WHERE Comment_ID = ?
+        ");
+
+        $stmt->bind_param(
+            "i",
+            $comment_id
+        );
+
+        if ($stmt->execute()) {
+
+            $message =
+                "Comment flagged successfully.";
+
+        } else {
+
+            $error =
+                "Unable to flag comment.";
+        }
+
+        $stmt->close();
     }
 }
 
@@ -261,136 +387,209 @@ if (
 |--------------------------------------------------------------------------
 */
 
-if (
-    $_SERVER["REQUEST_METHOD"] === "POST" &&
-    isset($_POST["delete_comment"])
-) {
+if (isset($_POST["delete_comment"])) {
 
     $comment_id =
-        $_POST["comment_id"] ?? "";
+        intval($_POST["comment_id"] ?? 0);
 
-    if (!is_numeric($comment_id)) {
 
-        $error = "Invalid comment ID.";
+    if ($comment_id > 0) {
 
-    } else {
+        $stmt = $conn->prepare("
+            DELETE FROM `COMMENT`
+            WHERE Comment_ID = ?
+        ");
 
-        $comment_id = (int)$comment_id;
+        $stmt->bind_param(
+            "i",
+            $comment_id
+        );
 
-        $sql = "DELETE FROM `COMMENT`
-                WHERE Comment_ID = ?";
 
-        $stmt = $conn->prepare($sql);
+        if ($stmt->execute()) {
 
-        if (!$stmt) {
-
-            $error = "Database error: " . $conn->error;
+            $message =
+                "Comment deleted successfully.";
 
         } else {
 
-            $stmt->bind_param(
-                "i",
-                $comment_id
-            );
-
-            if ($stmt->execute()) {
-
-                $message =
-                    "Comment deleted successfully.";
-
-            } else {
-
-                $error =
-                    "Unable to delete comment: "
-                    . $stmt->error;
-            }
-
-            $stmt->close();
+            $error =
+                "Unable to delete comment.";
         }
+
+
+        $stmt->close();
     }
 }
 
 
 /*
 |--------------------------------------------------------------------------
-| BAN / UNBAN REPORTER
+| BAN REPORTER
 |--------------------------------------------------------------------------
 */
 
-if (
-    $_SERVER["REQUEST_METHOD"] === "POST" &&
-    isset($_POST["reporter_action"])
-) {
+if (isset($_POST["ban_reporter"])) {
 
     $reporter_id =
-        $_POST["reporter_id"] ?? "";
-
-    $action =
-        $_POST["reporter_action"] ?? "";
-
-    if (!is_numeric($reporter_id)) {
-
-        $error = "Invalid reporter ID.";
-
-    } elseif (
-        $action !== "ban" &&
-        $action !== "unban"
-    ) {
-
-        $error = "Invalid reporter action.";
-
-    } else {
-
-        $reporter_id = (int)$reporter_id;
-
-        $new_status =
-            ($action === "ban")
-            ? "Banned"
-            : "Active";
+        intval($_POST["reporter_id"] ?? 0);
 
 
-        $sql = "UPDATE REPORTER
-                SET Status = ?
-                WHERE Staff_ID = ?";
+    if ($reporter_id > 0) {
 
-        $stmt = $conn->prepare($sql);
+        $stmt = $conn->prepare("
+            UPDATE REPORTER
+            SET Status = 'Banned'
+            WHERE Staff_ID = ?
+        ");
 
-        if (!$stmt) {
+        $stmt->bind_param(
+            "i",
+            $reporter_id
+        );
 
-            $error = "Database error: " . $conn->error;
+
+        if ($stmt->execute()) {
+
+            $message =
+                "Reporter has been banned.";
 
         } else {
 
-            $stmt->bind_param(
-                "si",
-                $new_status,
-                $reporter_id
-            );
-
-            if ($stmt->execute()) {
-
-                if ($action === "ban") {
-
-                    $message =
-                        "Reporter banned successfully.";
-
-                } else {
-
-                    $message =
-                        "Reporter unbanned successfully.";
-                }
-
-            } else {
-
-                $error =
-                    "Unable to update reporter status: "
-                    . $stmt->error;
-            }
-
-            $stmt->close();
+            $error =
+                "Unable to ban reporter.";
         }
+
+
+        $stmt->close();
     }
 }
+
+
+/*
+|--------------------------------------------------------------------------
+| UNBAN REPORTER
+|--------------------------------------------------------------------------
+*/
+
+if (isset($_POST["unban_reporter"])) {
+
+    $reporter_id =
+        intval($_POST["reporter_id"] ?? 0);
+
+
+    if ($reporter_id > 0) {
+
+        $stmt = $conn->prepare("
+            UPDATE REPORTER
+            SET Status = 'Active'
+            WHERE Staff_ID = ?
+        ");
+
+        $stmt->bind_param(
+            "i",
+            $reporter_id
+        );
+
+
+        if ($stmt->execute()) {
+
+            $message =
+                "Reporter has been unbanned.";
+
+        } else {
+
+            $error =
+                "Unable to unban reporter.";
+        }
+
+
+        $stmt->close();
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| GET DASHBOARD STATISTICS
+|--------------------------------------------------------------------------
+*/
+
+
+/* Advertisement count */
+
+$ad_count_result = $conn->query("
+    SELECT COUNT(*) AS total
+    FROM ADVERTISEMENT
+");
+
+$ad_count =
+    $ad_count_result->fetch_assoc()["total"];
+
+
+/* Comment count */
+
+$comment_count_result = $conn->query("
+    SELECT COUNT(*) AS total
+    FROM `COMMENT`
+");
+
+$comment_count =
+    $comment_count_result->fetch_assoc()["total"];
+
+
+/* Reporter count */
+
+$reporter_count_result = $conn->query("
+    SELECT COUNT(*) AS total
+    FROM REPORTER
+");
+
+$reporter_count =
+    $reporter_count_result->fetch_assoc()["total"];
+
+
+/* Banned reporter count */
+
+$banned_count_result = $conn->query("
+    SELECT COUNT(*) AS total
+    FROM REPORTER
+    WHERE Status = 'Banned'
+");
+
+$banned_count =
+    $banned_count_result->fetch_assoc()["total"];
+
+
+/* Pending comment count */
+
+$pending_comment_result = $conn->query("
+    SELECT COUNT(*) AS total
+    FROM `COMMENT`
+    WHERE Status = 'Pending'
+");
+
+$pending_comments =
+    $pending_comment_result->fetch_assoc()["total"];
+
+
+/*
+|--------------------------------------------------------------------------
+| GET PUBLISHED ARTICLES
+|--------------------------------------------------------------------------
+|
+| These are the articles that admins can attach advertisements to.
+|
+*/
+
+$articles = $conn->query("
+    SELECT
+        Article_ID,
+        Title
+    FROM ARTICLE
+    WHERE Status = 'Published'
+    ORDER BY Published_At DESC, Title ASC
+");
 
 
 /*
@@ -399,19 +598,20 @@ if (
 |--------------------------------------------------------------------------
 */
 
-$advertisements = $conn->query(
-    "SELECT
-        a.Advertisement_ID,
-        a.Brand,
-        a.Duration,
-        a.Status,
-        a.Admin_ID,
-        w.Name AS Admin_Name
-     FROM ADVERTISEMENT a
-     LEFT JOIN WEBSITE_ADMIN w
-        ON a.Admin_ID = w.Admin_ID
-     ORDER BY a.Advertisement_ID DESC"
-);
+$advertisements = $conn->query("
+    SELECT
+        ad.Advertisement_ID,
+        ad.Brand,
+
+        ad.Status,
+        ad.Admin_ID,
+        ad.Article_ID,
+        a.Title AS Article_Title
+    FROM ADVERTISEMENT ad
+    LEFT JOIN ARTICLE a
+        ON ad.Article_ID = a.Article_ID
+    ORDER BY ad.Advertisement_ID DESC
+");
 
 
 /*
@@ -420,21 +620,21 @@ $advertisements = $conn->query(
 |--------------------------------------------------------------------------
 */
 
-$comments = $conn->query(
-    "SELECT
-        cm.Comment_ID,
-        cm.Comment_Text,
-        cm.Time_Stamp,
-        cm.Status,
+$comments = $conn->query("
+    SELECT
+        c.Comment_ID,
+        c.Comment_Text,
+        c.Time_Stamp,
+        c.Status,
         r.Name AS Reader_Name,
         a.Title AS Article_Title
-     FROM `COMMENT` cm
-     LEFT JOIN REGISTERED_READER r
-        ON cm.Reader_ID = r.Reader_ID
-     LEFT JOIN ARTICLE a
-        ON cm.Article_ID = a.Article_ID
-     ORDER BY cm.Time_Stamp DESC"
-);
+    FROM `COMMENT` c
+    JOIN REGISTERED_READER r
+        ON c.Reader_ID = r.Reader_ID
+    JOIN ARTICLE a
+        ON c.Article_ID = a.Article_ID
+    ORDER BY c.Time_Stamp DESC
+");
 
 
 /*
@@ -443,77 +643,17 @@ $comments = $conn->query(
 |--------------------------------------------------------------------------
 */
 
-$reporters = $conn->query(
-    "SELECT
+$reporters = $conn->query("
+    SELECT
         Staff_ID,
         Name,
         Email,
         Status,
         Specialization,
         Joining_Date
-     FROM REPORTER
-     ORDER BY Staff_ID ASC"
-);
-
-
-/*
-|--------------------------------------------------------------------------
-| STATISTICS
-|--------------------------------------------------------------------------
-*/
-
-$advertisement_count = 0;
-$comment_count = 0;
-$reporter_count = 0;
-$banned_reporter_count = 0;
-
-$count_result = $conn->query(
-    "SELECT COUNT(*) AS total
-     FROM ADVERTISEMENT"
-);
-
-if ($count_result) {
-
-    $advertisement_count =
-        $count_result->fetch_assoc()["total"];
-}
-
-
-$count_result = $conn->query(
-    "SELECT COUNT(*) AS total
-     FROM `COMMENT`"
-);
-
-if ($count_result) {
-
-    $comment_count =
-        $count_result->fetch_assoc()["total"];
-}
-
-
-$count_result = $conn->query(
-    "SELECT COUNT(*) AS total
-     FROM REPORTER"
-);
-
-if ($count_result) {
-
-    $reporter_count =
-        $count_result->fetch_assoc()["total"];
-}
-
-
-$count_result = $conn->query(
-    "SELECT COUNT(*) AS total
-     FROM REPORTER
-     WHERE Status = 'Banned'"
-);
-
-if ($count_result) {
-
-    $banned_reporter_count =
-        $count_result->fetch_assoc()["total"];
-}
+    FROM REPORTER
+    ORDER BY Staff_ID ASC
+");
 
 ?>
 
@@ -530,358 +670,383 @@ if ($count_result) {
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>
-        Admin Dashboard - The Daily News
-    </title>
+    <title>Admin Dashboard</title>
 
 
     <style>
 
         * {
             box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
         }
 
+
         body {
-            background: #f4f5f7;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
             color: #222;
         }
 
-        .header {
-            background: #111;
-            color: white;
-            padding: 18px 40px;
 
+        .dashboard {
+            width: 95%;
+            max-width: 1400px;
+            margin: 30px auto;
+        }
+
+
+        .dashboard-header {
+            background: #1f2937;
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-        }
-
-        .logo {
-            font-family: Georgia, serif;
-            font-size: 28px;
-            font-weight: bold;
-        }
-
-        .header-right {
-            display: flex;
-            align-items: center;
             gap: 20px;
         }
 
-        .user-info {
-            text-align: right;
+
+        .dashboard-header h1 {
+            margin: 5px 0;
         }
 
-        .user-name {
-            font-weight: bold;
-        }
 
-        .user-role {
+        .eyebrow {
+            margin: 0;
             font-size: 13px;
-            color: #ccc;
+            letter-spacing: 2px;
+            opacity: 0.8;
         }
 
-        .logout-button {
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+
+        .button-link {
+            display: inline-block;
+            padding: 10px 16px;
+            background: white;
+            color: #1f2937;
             text-decoration: none;
-            color: white;
-
-            border: 1px solid #aaa;
-
-            padding: 8px 15px;
-
-            border-radius: 5px;
-        }
-
-        .logout-button:hover {
-            background: white;
-            color: #111;
-        }
-
-        .container {
-            max-width: 1250px;
-            margin: 40px auto;
-            padding: 0 20px;
-        }
-
-        .welcome {
-            margin-bottom: 30px;
-        }
-
-        .welcome h1 {
-            font-family: Georgia, serif;
-            margin-bottom: 7px;
-        }
-
-        .welcome p {
-            color: #666;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-            margin-bottom: 35px;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 22px;
-            border-radius: 8px;
-
-            box-shadow:
-                0 2px 8px rgba(0,0,0,0.08);
-        }
-
-        .stat-number {
-            font-size: 30px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .stat-label {
-            color: #777;
-            font-size: 14px;
-        }
-
-        .notice {
-            padding: 14px 18px;
-            margin-bottom: 25px;
             border-radius: 6px;
             font-weight: bold;
         }
 
-        .success {
-            background: #d4edda;
-            color: #155724;
+
+        .button-link:hover {
+            opacity: 0.9;
         }
 
-        .error {
-            background: #f8d7da;
-            color: #721c24;
+
+        .notice {
+            padding: 14px 18px;
+            margin: 20px 0;
+            border-radius: 6px;
         }
+
+
+        .success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+
+        /* STATISTICS */
+
+        .stats {
+            display: grid;
+            grid-template-columns:
+                repeat(5, 1fr);
+
+            gap: 15px;
+
+            margin: 25px 0;
+        }
+
+
+        .stat-card {
+            background: white;
+            padding: 22px;
+            border-radius: 10px;
+            box-shadow:
+                0 2px 8px rgba(0,0,0,0.08);
+        }
+
+
+        .stat-card h3 {
+            margin: 0;
+            font-size: 14px;
+            color: #666;
+        }
+
+
+        .stat-number {
+            font-size: 30px;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
+
+        /* SECTIONS */
 
         .section {
             background: white;
-            border-radius: 8px;
-
+            padding: 25px;
+            margin-bottom: 25px;
+            border-radius: 10px;
             box-shadow:
                 0 2px 8px rgba(0,0,0,0.08);
-
-            margin-bottom: 30px;
-
-            overflow: hidden;
         }
 
-        .section-header {
-            padding: 20px 25px;
+
+        .section h2 {
+            margin-top: 0;
             border-bottom: 1px solid #ddd;
+            padding-bottom: 12px;
         }
 
-        .section-header h2 {
-            font-family: Georgia, serif;
-        }
 
-        .add-form {
-            padding: 25px;
-            background: #fafafa;
-            border-bottom: 1px solid #ddd;
-        }
+        /* FORMS */
 
-        .form-row {
+        .form-grid {
             display: grid;
-            grid-template-columns: 2fr 1fr 1fr auto;
-            gap: 12px;
+            grid-template-columns:
+                repeat(4, 1fr);
+
+            gap: 15px;
             align-items: end;
         }
 
-        .form-group label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 7px;
-            font-size: 13px;
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
 
-        input,
-        select {
-            width: 100%;
-            padding: 10px;
 
-            border: 1px solid #ccc;
-            border-radius: 5px;
-
+        .form-group label {
+            font-weight: bold;
             font-size: 14px;
         }
 
-        input:focus,
-        select:focus {
-            outline: none;
-            border-color: #555;
+
+        input,
+        select {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 100%;
         }
+
 
         button {
             border: none;
-            cursor: pointer;
+            padding: 10px 14px;
             border-radius: 5px;
+            cursor: pointer;
             font-weight: bold;
         }
 
-        .add-button {
-            background: #111;
+
+        .add-btn {
+            background: #2563eb;
             color: white;
-            padding: 10px 18px;
         }
 
-        .add-button:hover {
-            background: #333;
+
+        .save-btn {
+            background: #2563eb;
+            color: white;
         }
 
-        .table-container {
+
+        .approve-btn {
+            background: #16a34a;
+            color: white;
+        }
+
+
+        .flag-btn {
+            background: #f59e0b;
+            color: white;
+        }
+
+
+        .delete-btn {
+            background: #dc2626;
+            color: white;
+        }
+
+
+        .ban-btn {
+            background: #dc2626;
+            color: white;
+        }
+
+
+        .unban-btn {
+            background: #16a34a;
+            color: white;
+        }
+
+
+        button:hover {
+            opacity: 0.85;
+        }
+
+
+        /* TABLE */
+
+        .table-wrap {
             overflow-x: auto;
         }
+
 
         table {
             width: 100%;
             border-collapse: collapse;
         }
 
-        th {
-            background: #f7f7f7;
-            text-align: left;
-            padding: 14px;
-            font-size: 13px;
+
+        th,
+        td {
+            padding: 12px;
             border-bottom: 1px solid #ddd;
+            text-align: left;
+            vertical-align: middle;
         }
 
-        td {
-            padding: 14px;
-            border-bottom: 1px solid #eee;
-            vertical-align: middle;
+
+        th {
+            background: #f3f4f6;
             font-size: 14px;
         }
 
-        tr:hover {
-            background: #fafafa;
+
+        td {
+            font-size: 14px;
         }
 
+
         .inline-form {
-            display: flex;
-            gap: 6px;
+            display: inline;
+        }
+
+
+        .edit-form {
+            display: grid;
+            grid-template-columns:
+                1fr 100px 120px 1fr auto;
+
+            gap: 8px;
+
             align-items: center;
         }
 
-        .inline-form input,
-        .inline-form select {
-            width: auto;
-        }
 
-        .update-button {
-            background: #e7f0ff;
-            color: #1a56db;
-            padding: 7px 10px;
-        }
-
-        .delete-button {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 7px 10px;
-        }
-
-        .delete-button:hover {
-            background: #f1c1c5;
-        }
-
-        .ban-button {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 7px 10px;
-        }
-
-        .unban-button {
-            background: #d4edda;
-            color: #155724;
-            padding: 7px 10px;
-        }
+        /* STATUS */
 
         .status {
             display: inline-block;
-
-            padding: 5px 10px;
-
+            padding: 5px 9px;
             border-radius: 20px;
-
             font-size: 12px;
-
             font-weight: bold;
         }
 
-        .active {
-            background: #d4edda;
-            color: #155724;
+
+        .status.active,
+        .status.approved {
+            background: #dcfce7;
+            color: #166534;
         }
 
-        .pending {
-            background: #fff3cd;
-            color: #856404;
+
+        .status.pending {
+            background: #fef3c7;
+            color: #92400e;
         }
 
-        .banned {
-            background: #f8d7da;
-            color: #721c24;
+
+        .status.flagged,
+        .status.banned {
+            background: #fee2e2;
+            color: #991b1b;
         }
 
-        .comment-text {
-            max-width: 300px;
+
+        .status.inactive {
+            background: #e5e7eb;
+            color: #374151;
         }
 
-        .actions {
+
+        .action-buttons {
             display: flex;
             gap: 6px;
             flex-wrap: wrap;
         }
 
-        .small-text {
-            color: #777;
+
+        .small-button {
             font-size: 12px;
+            padding: 7px 10px;
         }
 
-        @media (max-width: 900px) {
+
+        .comment-text {
+            max-width: 300px;
+            word-wrap: break-word;
+        }
+
+
+        @media (max-width: 1000px) {
 
             .stats {
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns:
+                    repeat(2, 1fr);
             }
 
-            .form-row {
-                grid-template-columns: 1fr 1fr;
+
+            .form-grid {
+                grid-template-columns:
+                    repeat(2, 1fr);
+            }
+
+
+            .edit-form {
+                grid-template-columns:
+                    1fr 1fr;
             }
 
         }
 
-        @media (max-width: 600px) {
 
-            .header {
-                padding: 15px 20px;
+        @media (max-width: 650px) {
+
+            .dashboard-header {
+                flex-direction: column;
+                align-items: flex-start;
             }
 
-            .logo {
-                font-size: 22px;
-            }
-
-            .user-info {
-                display: none;
-            }
-
-            .container {
-                margin-top: 25px;
-            }
 
             .stats {
                 grid-template-columns: 1fr;
             }
 
-            .form-row {
+
+            .form-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -894,66 +1059,58 @@ if ($count_result) {
 
 <body>
 
-
-<header class="header">
-
-    <div class="logo">
-        The Daily News
-    </div>
+<main class="dashboard">
 
 
-    <div class="header-right">
+    <!-- HEADER -->
 
-        <div class="user-info">
+    <header class="dashboard-header">
 
-            <div class="user-name">
-                <?php
-                echo htmlspecialchars($admin_name);
-                ?>
-            </div>
+        <div>
 
-            <div class="user-role">
-                Website Administrator
-            </div>
+            <p class="eyebrow">
+                THE DAILY NEWS
+            </p>
+
+            <h1>
+                Admin Dashboard
+            </h1>
+
+            <p>
+                Welcome,
+                <?= htmlspecialchars($_SESSION["name"]) ?>
+            </p>
 
         </div>
 
 
-        <a
-            href="logout.php"
-            class="logout-button"
-        >
-            Logout
-        </a>
+        <div class="header-buttons">
 
-    </div>
+            <a
+                class="button-link"
+                href="dashboard.php"
+            >
+                Dashboard
+            </a>
 
-</header>
+            <a
+                class="button-link"
+                href="logout.php"
+            >
+                Logout
+            </a>
+
+        </div>
+
+    </header>
 
 
-<main class="container">
-
-
-    <div class="welcome">
-
-        <h1>
-            Admin Dashboard
-        </h1>
-
-        <p>
-            Manage advertisements, reader comments,
-            and reporter accounts.
-        </p>
-
-    </div>
-
+    <!-- MESSAGES -->
 
     <?php if ($message): ?>
 
         <div class="notice success">
-            <?php
-            echo htmlspecialchars($message);
-            ?>
+            <?= htmlspecialchars($message) ?>
         </div>
 
     <?php endif; ?>
@@ -962,28 +1119,24 @@ if ($count_result) {
     <?php if ($error): ?>
 
         <div class="notice error">
-            <?php
-            echo htmlspecialchars($error);
-            ?>
+            <?= htmlspecialchars($error) ?>
         </div>
 
     <?php endif; ?>
 
 
-    <!-- =====================================================
-         STATISTICS
-    ====================================================== -->
+    <!-- STATISTICS -->
 
     <section class="stats">
 
         <div class="stat-card">
 
-            <div class="stat-number">
-                <?php echo $advertisement_count; ?>
-            </div>
-
-            <div class="stat-label">
+            <h3>
                 Advertisements
+            </h3>
+
+            <div class="stat-number">
+                <?= $ad_count ?>
             </div>
 
         </div>
@@ -991,12 +1144,12 @@ if ($count_result) {
 
         <div class="stat-card">
 
-            <div class="stat-number">
-                <?php echo $comment_count; ?>
-            </div>
+            <h3>
+                Comments
+            </h3>
 
-            <div class="stat-label">
-                Reader Comments
+            <div class="stat-number">
+                <?= $comment_count ?>
             </div>
 
         </div>
@@ -1004,12 +1157,25 @@ if ($count_result) {
 
         <div class="stat-card">
 
+            <h3>
+                Pending Comments
+            </h3>
+
             <div class="stat-number">
-                <?php echo $reporter_count; ?>
+                <?= $pending_comments ?>
             </div>
 
-            <div class="stat-label">
+        </div>
+
+
+        <div class="stat-card">
+
+            <h3>
                 Reporters
+            </h3>
+
+            <div class="stat-number">
+                <?= $reporter_count ?>
             </div>
 
         </div>
@@ -1017,12 +1183,12 @@ if ($count_result) {
 
         <div class="stat-card">
 
-            <div class="stat-number">
-                <?php echo $banned_reporter_count; ?>
-            </div>
-
-            <div class="stat-label">
+            <h3>
                 Banned Reporters
+            </h3>
+
+            <div class="stat-number">
+                <?= $banned_count ?>
             </div>
 
         </div>
@@ -1030,144 +1196,213 @@ if ($count_result) {
     </section>
 
 
-
-    <!-- =====================================================
-         ADVERTISEMENTS
-    ====================================================== -->
+    <!-- =========================================================
+         ADVERTISEMENT MANAGEMENT
+    ========================================================== -->
 
     <section class="section">
 
-        <div class="section-header">
-
-            <h2>
-                Advertisement Management
-            </h2>
-
-        </div>
+        <h2>
+            Advertisement Management
+        </h2>
 
 
         <!-- ADD ADVERTISEMENT -->
 
-        <div class="add-form">
+        <h3>
+            Add Advertisement
+        </h3>
 
-            <form method="POST">
 
-                <div class="form-row">
+        <form
+            method="POST"
+            class="form-grid"
+        >
 
-                    <div class="form-group">
+            <div class="form-group">
 
-                        <label>
-                            Brand
-                        </label>
+                <label>
+                    Brand
+                </label>
 
-                        <input
-                            type="text"
-                            name="brand"
-                            placeholder="Enter brand name"
-                            required
+                <input
+                    type="text"
+                    name="brand"
+                    placeholder="Brand name"
+                    required
+                >
+
+            </div>
+
+
+
+
+
+            <div class="form-group">
+
+                <label>
+                    Status
+                </label>
+
+                <select
+                    name="status"
+                    required
+                >
+
+                    <option value="Active">
+                        Active
+                    </option>
+
+                    <option value="Pending">
+                        Pending
+                    </option>
+
+                    <option value="Inactive">
+                        Inactive
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label>
+                    Article
+                </label>
+
+                <select
+                    name="article_id"
+                    required
+                >
+
+                    <option value="">
+                        -- Select Article --
+                    </option>
+
+
+                    <?php
+
+                    /*
+                    | Re-query because the result may have
+                    | been consumed later.
+                    */
+
+                    $article_options =
+                        $conn->query("
+                            SELECT
+                                Article_ID,
+                                Title
+                            FROM ARTICLE
+                            WHERE Status = 'Published'
+                            ORDER BY
+                                Published_At DESC,
+                                Title ASC
+                        ");
+
+                    while (
+                        $article =
+                        $article_options->fetch_assoc()
+                    ):
+
+                    ?>
+
+                        <option
+                            value="<?= (int)$article["Article_ID"] ?>"
                         >
 
-                    </div>
+                            <?= htmlspecialchars(
+                                $article["Title"]
+                            ) ?>
+
+                        </option>
+
+                    <?php endwhile; ?>
+
+                </select>
+
+            </div>
 
 
-                    <div class="form-group">
+            <div>
 
-                        <label>
-                            Duration
-                        </label>
+                <button
+                    type="submit"
+                    name="add_advertisement"
+                    class="add-btn"
+                >
+                    Add Advertisement
+                </button>
 
-                        <input
-                            type="number"
-                            name="duration"
-                            min="1"
-                            placeholder="Seconds"
-                            required
-                        >
+            </div>
 
-                    </div>
+        </form>
 
 
-                    <div class="form-group">
-
-                        <label>
-                            Status
-                        </label>
-
-                        <select name="status">
-
-                            <option value="Active">
-                                Active
-                            </option>
-
-                            <option value="Pending">
-                                Pending
-                            </option>
-
-                            <option value="Inactive">
-                                Inactive
-                            </option>
-
-                        </select>
-
-                    </div>
+        <br>
 
 
-                    <button
-                        type="submit"
-                        name="add_advertisement"
-                        class="add-button"
-                    >
-                        + Add Advertisement
-                    </button>
+        <!-- EXISTING ADVERTISEMENTS -->
 
-                </div>
-
-            </form>
-
-        </div>
+        <h3>
+            Existing Advertisements
+        </h3>
 
 
-        <!-- ADVERTISEMENT LIST -->
-
-        <div class="table-container">
-
-            <table>
-
-                <thead>
-
-                    <tr>
-
-                        <th>ID</th>
-
-                        <th>Brand</th>
-
-                        <th>Duration</th>
-
-                        <th>Status</th>
-
-                        <th>Added By</th>
-
-                        <th>Actions</th>
-
-                    </tr>
-
-                </thead>
+        <?php if (
+            $advertisements &&
+            $advertisements->num_rows > 0
+        ): ?>
 
 
-                <tbody>
+            <div class="table-wrap">
 
-                <?php if ($advertisements && $advertisements->num_rows > 0): ?>
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                ID
+                            </th>
+
+                            <th>
+                                Brand
+                            </th>
+
+
+                            <th>
+                                Article
+                            </th>
+
+                            <th>
+                                Status
+                            </th>
+
+                            <th>
+                                Actions
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
 
                     <?php while (
-                        $ad = $advertisements->fetch_assoc()
+                        $ad =
+                        $advertisements->fetch_assoc()
                     ): ?>
+
 
                         <tr>
 
                             <td>
-                                <?php
-                                echo $ad["Advertisement_ID"];
-                                ?>
+                                <?= (int)$ad["Advertisement_ID"] ?>
                             </td>
 
 
@@ -1175,87 +1410,106 @@ if ($count_result) {
 
                                 <form
                                     method="POST"
-                                    class="inline-form"
+                                    class="edit-form"
                                 >
 
                                     <input
                                         type="hidden"
                                         name="advertisement_id"
-                                        value="<?php
-                                        echo $ad["Advertisement_ID"];
-                                        ?>"
+                                        value="<?= (int)$ad["Advertisement_ID"] ?>"
                                     >
+
 
                                     <input
                                         type="text"
                                         name="brand"
-                                        value="<?php
-                                        echo htmlspecialchars(
-                                            $ad["Brand"]
-                                        );
-                                        ?>"
+                                        value="<?= htmlspecialchars($ad["Brand"]) ?>"
                                         required
                                     >
 
-                            </td>
+
+                                   
 
 
-                            <td>
-
-                                    <input
-                                        type="number"
-                                        name="duration"
-                                        min="1"
-                                        value="<?php
-                                        echo $ad["Duration"];
-                                        ?>"
+                                    <select
+                                        name="article_id"
                                         required
                                     >
 
-                            </td>
+                                        <?php
+
+                                        $edit_articles =
+                                            $conn->query("
+                                                SELECT
+                                                    Article_ID,
+                                                    Title
+                                                FROM ARTICLE
+                                                WHERE Status = 'Published'
+                                                ORDER BY Title ASC
+                                            ");
+
+                                        while (
+                                            $edit_article =
+                                            $edit_articles->fetch_assoc()
+                                        ):
+
+                                        ?>
+
+                                            <option
+                                                value="<?= (int)$edit_article["Article_ID"] ?>"
+                                                <?= (
+                                                    (int)$edit_article["Article_ID"]
+                                                    ===
+                                                    (int)$ad["Article_ID"]
+                                                )
+                                                    ? "selected"
+                                                    : ""
+                                                ?>
+                                            >
+
+                                                <?= htmlspecialchars(
+                                                    $edit_article["Title"]
+                                                ) ?>
+
+                                            </option>
+
+                                        <?php endwhile; ?>
+
+                                    </select>
 
 
-                            <td>
-
-                                    <select name="status">
+                                    <select
+                                        name="status"
+                                        required
+                                    >
 
                                         <option
                                             value="Active"
-                                            <?php
-                                            if (
-                                                $ad["Status"]
-                                                === "Active"
-                                            ) {
-                                                echo "selected";
-                                            }
+                                            <?= $ad["Status"] === "Active"
+                                                ? "selected"
+                                                : ""
                                             ?>
                                         >
                                             Active
                                         </option>
 
+
                                         <option
                                             value="Pending"
-                                            <?php
-                                            if (
-                                                $ad["Status"]
-                                                === "Pending"
-                                            ) {
-                                                echo "selected";
-                                            }
+                                            <?= $ad["Status"] === "Pending"
+                                                ? "selected"
+                                                : ""
                                             ?>
                                         >
                                             Pending
                                         </option>
 
+
                                         <option
                                             value="Inactive"
-                                            <?php
-                                            if (
-                                                $ad["Status"]
-                                                === "Inactive"
-                                            ) {
-                                                echo "selected";
-                                            }
+                                            <?= $ad["Status"] === "Inactive"
+                                                ? "selected"
+                                                : ""
                                             ?>
                                         >
                                             Inactive
@@ -1263,375 +1517,29 @@ if ($count_result) {
 
                                     </select>
 
-                            </td>
-
-
-                            <td>
-
-                                <?php
-                                echo htmlspecialchars(
-                                    $ad["Admin_Name"]
-                                    ?? "Unknown"
-                                );
-                                ?>
-
-                            </td>
-
-
-                            <td>
-
-                                    <div class="actions">
-
-                                        <button
-                                            type="submit"
-                                            name="edit_advertisement"
-                                            class="update-button"
-                                        >
-                                            Save
-                                        </button>
-
-                                </form>
-
-
-                                <form
-                                    method="POST"
-                                    onsubmit="return confirm(
-                                        'Delete this advertisement?'
-                                    );"
-                                >
-
-                                    <input
-                                        type="hidden"
-                                        name="advertisement_id"
-                                        value="<?php
-                                        echo $ad["Advertisement_ID"];
-                                        ?>"
-                                    >
 
                                     <button
                                         type="submit"
-                                        name="delete_advertisement"
-                                        class="delete-button"
+                                        name="edit_advertisement"
+                                        class="save-btn"
                                     >
-                                        Delete
-                                    </button>
-
-                                </form>
-
-                                    </div>
-
-                            </td>
-
-                        </tr>
-
-                    <?php endwhile; ?>
-
-                <?php else: ?>
-
-                    <tr>
-
-                        <td colspan="6">
-                            No advertisements found.
-                        </td>
-
-                    </tr>
-
-                <?php endif; ?>
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </section>
-
-
-
-    <!-- =====================================================
-         COMMENTS
-    ====================================================== -->
-
-    <section class="section">
-
-        <div class="section-header">
-
-            <h2>
-                Reader Comment Management
-            </h2>
-
-        </div>
-
-
-        <div class="table-container">
-
-            <table>
-
-                <thead>
-
-                    <tr>
-
-                        <th>ID</th>
-
-                        <th>Comment</th>
-
-                        <th>Reader</th>
-
-                        <th>Article</th>
-
-                        <th>Status</th>
-
-                        <th>Time</th>
-
-                        <th>Action</th>
-
-                    </tr>
-
-                </thead>
-
-
-                <tbody>
-
-                <?php if ($comments && $comments->num_rows > 0): ?>
-
-                    <?php while (
-                        $comment = $comments->fetch_assoc()
-                    ): ?>
-
-                        <tr>
-
-                            <td>
-                                <?php
-                                echo $comment["Comment_ID"];
-                                ?>
-                            </td>
-
-
-                            <td class="comment-text">
-
-                                <?php
-                                echo htmlspecialchars(
-                                    $comment["Comment_Text"]
-                                );
-                                ?>
-
-                            </td>
-
-
-                            <td>
-
-                                <?php
-                                echo htmlspecialchars(
-                                    $comment["Reader_Name"]
-                                    ?? "Unknown"
-                                );
-                                ?>
-
-                            </td>
-
-
-                            <td>
-
-                                <?php
-                                echo htmlspecialchars(
-                                    $comment["Article_Title"]
-                                    ?? "Unknown"
-                                );
-                                ?>
-
-                            </td>
-
-
-                            <td>
-
-                                <span class="status">
-
-                                    <?php
-                                    echo htmlspecialchars(
-                                        $comment["Status"]
-                                    );
-                                    ?>
-
-                                </span>
-
-                            </td>
-
-
-                            <td>
-
-                                <span class="small-text">
-
-                                    <?php
-                                    echo date(
-                                        "d M Y H:i",
-                                        strtotime(
-                                            $comment["Time_Stamp"]
-                                        )
-                                    );
-                                    ?>
-
-                                </span>
-
-                            </td>
-
-
-                            <td>
-
-                                <form
-                                    method="POST"
-                                    onsubmit="return confirm(
-                                        'Permanently delete this comment?'
-                                    );"
-                                >
-
-                                    <input
-                                        type="hidden"
-                                        name="comment_id"
-                                        value="<?php
-                                        echo $comment["Comment_ID"];
-                                        ?>"
-                                    >
-
-                                    <button
-                                        type="submit"
-                                        name="delete_comment"
-                                        class="delete-button"
-                                    >
-                                        Delete
+                                        Save
                                     </button>
 
                                 </form>
 
                             </td>
 
-                        </tr>
 
-                    <?php endwhile; ?>
-
-                <?php else: ?>
-
-                    <tr>
-
-                        <td colspan="7">
-                            No comments found.
-                        </td>
-
-                    </tr>
-
-                <?php endif; ?>
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </section>
-
-
-
-    <!-- =====================================================
-         REPORTERS
-    ====================================================== -->
-
-    <section class="section">
-
-        <div class="section-header">
-
-            <h2>
-                Reporter Management
-            </h2>
-
-        </div>
-
-
-        <div class="table-container">
-
-            <table>
-
-                <thead>
-
-                    <tr>
-
-                        <th>ID</th>
-
-                        <th>Name</th>
-
-                        <th>Email</th>
-
-                        <th>Specialization</th>
-
-                        <th>Joining Date</th>
-
-                        <th>Status</th>
-
-                        <th>Action</th>
-
-                    </tr>
-
-                </thead>
-
-
-                <tbody>
-
-                <?php if ($reporters && $reporters->num_rows > 0): ?>
-
-                    <?php while (
-                        $reporter = $reporters->fetch_assoc()
-                    ): ?>
-
-                        <tr>
-
-                            <td>
-                                <?php
-                                echo $reporter["Staff_ID"];
-                                ?>
-                            </td>
+                            
 
 
                             <td>
 
-                                <?php
-                                echo htmlspecialchars(
-                                    $reporter["Name"]
-                                );
-                                ?>
-
-                            </td>
-
-
-                            <td>
-
-                                <?php
-                                echo htmlspecialchars(
-                                    $reporter["Email"]
-                                );
-                                ?>
-
-                            </td>
-
-
-                            <td>
-
-                                <?php
-                                echo htmlspecialchars(
-                                    $reporter["Specialization"]
-                                );
-                                ?>
-
-                            </td>
-
-
-                            <td>
-
-                                <?php
-                                echo date(
-                                    "d M Y",
-                                    strtotime(
-                                        $reporter["Joining_Date"]
-                                    )
-                                );
-                                ?>
+                                <?= htmlspecialchars(
+                                    $ad["Article_Title"]
+                                    ?? "Not linked"
+                                ) ?>
 
                             </td>
 
@@ -1639,19 +1547,14 @@ if ($count_result) {
                             <td>
 
                                 <span
-                                    class="status
-                                    <?php
-                                    echo strtolower(
-                                        $reporter["Status"]
-                                    );
-                                    ?>"
+                                    class="status <?= strtolower(
+                                        $ad["Status"]
+                                    ) ?>"
                                 >
 
-                                    <?php
-                                    echo htmlspecialchars(
-                                        $reporter["Status"]
-                                    );
-                                    ?>
+                                    <?= htmlspecialchars(
+                                        $ad["Status"]
+                                    ) ?>
 
                                 </span>
 
@@ -1660,91 +1563,528 @@ if ($count_result) {
 
                             <td>
 
-                                <?php if (
-                                    strtolower(
-                                        $reporter["Status"]
-                                    ) === "banned"
-                                ): ?>
+                                <form
+                                    method="POST"
+                                    onsubmit="
+                                        return confirm(
+                                            'Are you sure you want to delete this advertisement?'
+                                        );
+                                    "
+                                >
+
+                                    <input
+                                        type="hidden"
+                                        name="advertisement_id"
+                                        value="<?= (int)$ad["Advertisement_ID"] ?>"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        name="delete_advertisement"
+                                        class="delete-btn small-button"
+                                    >
+                                        Delete
+                                    </button>
+
+                                </form>
+
+                            </td>
+
+                        </tr>
+
+
+                    <?php endwhile; ?>
+
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+
+        <?php else: ?>
+
+            <p>
+                No advertisements found.
+            </p>
+
+        <?php endif; ?>
+
+    </section>
+
+
+    <!-- =========================================================
+         COMMENT MANAGEMENT
+    ========================================================== -->
+
+    <section class="section">
+
+        <h2>
+            Comment Management
+        </h2>
+
+
+        <p>
+            Approve comments before they become publicly visible.
+            Flag inappropriate comments or permanently delete them.
+        </p>
+
+
+        <?php if (
+            $comments &&
+            $comments->num_rows > 0
+        ): ?>
+
+
+            <div class="table-wrap">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                ID
+                            </th>
+
+                            <th>
+                                Reader
+                            </th>
+
+                            <th>
+                                Article
+                            </th>
+
+                            <th>
+                                Comment
+                            </th>
+
+                            <th>
+                                Date
+                            </th>
+
+                            <th>
+                                Status
+                            </th>
+
+                            <th>
+                                Actions
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+
+                    <?php while (
+                        $comment =
+                        $comments->fetch_assoc()
+                    ): ?>
+
+
+                        <tr>
+
+                            <td>
+                                <?= (int)$comment["Comment_ID"] ?>
+                            </td>
+
+
+                            <td>
+                                <?= htmlspecialchars(
+                                    $comment["Reader_Name"]
+                                ) ?>
+                            </td>
+
+
+                            <td>
+                                <?= htmlspecialchars(
+                                    $comment["Article_Title"]
+                                ) ?>
+                            </td>
+
+
+                            <td class="comment-text">
+
+                                <?= htmlspecialchars(
+                                    $comment["Comment_Text"]
+                                ) ?>
+
+                            </td>
+
+
+                            <td>
+                                <?= htmlspecialchars(
+                                    $comment["Time_Stamp"]
+                                ) ?>
+                            </td>
+
+
+                            <td>
+
+                                <span
+                                    class="status <?= strtolower(
+                                        $comment["Status"]
+                                    ) ?>"
+                                >
+
+                                    <?= htmlspecialchars(
+                                        $comment["Status"]
+                                    ) ?>
+
+                                </span>
+
+                            </td>
+
+
+                            <td>
+
+                                <div class="action-buttons">
+
+
+                                    <!-- APPROVE -->
+
+                                    <?php if (
+                                        $comment["Status"]
+                                        !==
+                                        "Approved"
+                                    ): ?>
+
+                                        <form
+                                            method="POST"
+                                            class="inline-form"
+                                        >
+
+                                            <input
+                                                type="hidden"
+                                                name="comment_id"
+                                                value="<?= (int)$comment["Comment_ID"] ?>"
+                                            >
+
+                                            <button
+                                                type="submit"
+                                                name="approve_comment"
+                                                class="approve-btn small-button"
+                                            >
+                                                Approve
+                                            </button>
+
+                                        </form>
+
+                                    <?php endif; ?>
+
+
+                                    <!-- FLAG -->
+
+                                    <?php if (
+                                        $comment["Status"]
+                                        !==
+                                        "Flagged"
+                                    ): ?>
+
+                                        <form
+                                            method="POST"
+                                            class="inline-form"
+                                        >
+
+                                            <input
+                                                type="hidden"
+                                                name="comment_id"
+                                                value="<?= (int)$comment["Comment_ID"] ?>"
+                                            >
+
+                                            <button
+                                                type="submit"
+                                                name="flag_comment"
+                                                class="flag-btn small-button"
+                                            >
+                                                Flag
+                                            </button>
+
+                                        </form>
+
+                                    <?php endif; ?>
+
+
+                                    <!-- DELETE -->
 
                                     <form
                                         method="POST"
-                                        onsubmit="return confirm(
-                                            'Unban this reporter?'
-                                        );"
+                                        class="inline-form"
+                                        onsubmit="
+                                            return confirm(
+                                                'Are you sure you want to permanently delete this comment?'
+                                            );
+                                        "
+                                    >
+
+                                        <input
+                                            type="hidden"
+                                            name="comment_id"
+                                            value="<?= (int)$comment["Comment_ID"] ?>"
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            name="delete_comment"
+                                            class="delete-btn small-button"
+                                        >
+                                            Delete
+                                        </button>
+
+                                    </form>
+
+
+                                </div>
+
+                            </td>
+
+                        </tr>
+
+
+                    <?php endwhile; ?>
+
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+
+        <?php else: ?>
+
+            <p>
+                No comments found.
+            </p>
+
+        <?php endif; ?>
+
+    </section>
+
+
+    <!-- =========================================================
+         REPORTER MANAGEMENT
+    ========================================================== -->
+
+    <section class="section">
+
+        <h2>
+            Reporter Management
+        </h2>
+
+
+        <p>
+            Admins can ban reporters from submitting or managing
+            articles. Banning does not delete the reporter.
+        </p>
+
+
+        <?php if (
+            $reporters &&
+            $reporters->num_rows > 0
+        ): ?>
+
+
+            <div class="table-wrap">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                Staff ID
+                            </th>
+
+                            <th>
+                                Name
+                            </th>
+
+                            <th>
+                                Email
+                            </th>
+
+                            <th>
+                                Specialization
+                            </th>
+
+                            <th>
+                                Joining Date
+                            </th>
+
+                            <th>
+                                Status
+                            </th>
+
+                            <th>
+                                Action
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+
+                    <?php while (
+                        $reporter =
+                        $reporters->fetch_assoc()
+                    ): ?>
+
+
+                        <tr>
+
+                            <td>
+                                <?= (int)$reporter["Staff_ID"] ?>
+                            </td>
+
+
+                            <td>
+                                <?= htmlspecialchars(
+                                    $reporter["Name"]
+                                ) ?>
+                            </td>
+
+
+                            <td>
+                                <?= htmlspecialchars(
+                                    $reporter["Email"]
+                                ) ?>
+                            </td>
+
+
+                            <td>
+                                <?= htmlspecialchars(
+                                    $reporter["Specialization"]
+                                ) ?>
+                            </td>
+
+
+                            <td>
+                                <?= htmlspecialchars(
+                                    $reporter["Joining_Date"]
+                                ) ?>
+                            </td>
+
+
+                            <td>
+
+                                <span
+                                    class="status <?= strtolower(
+                                        $reporter["Status"]
+                                    ) ?>"
+                                >
+
+                                    <?= htmlspecialchars(
+                                        $reporter["Status"]
+                                    ) ?>
+
+                                </span>
+
+                            </td>
+
+
+                            <td>
+
+
+                                <?php if (
+                                    strtolower(
+                                        $reporter["Status"]
+                                    )
+                                    ===
+                                    "banned"
+                                ): ?>
+
+
+                                    <!-- UNBAN -->
+
+                                    <form
+                                        method="POST"
+                                        class="inline-form"
                                     >
 
                                         <input
                                             type="hidden"
                                             name="reporter_id"
-                                            value="<?php
-                                            echo $reporter["Staff_ID"];
-                                            ?>"
+                                            value="<?= (int)$reporter["Staff_ID"] ?>"
                                         >
 
                                         <button
                                             type="submit"
-                                            name="reporter_action"
-                                            value="unban"
-                                            class="unban-button"
+                                            name="unban_reporter"
+                                            class="unban-btn small-button"
                                         >
                                             Unban
                                         </button>
 
                                     </form>
 
+
                                 <?php else: ?>
+
+
+                                    <!-- BAN -->
 
                                     <form
                                         method="POST"
-                                        onsubmit="return confirm(
-                                            'Ban this reporter?'
-                                        );"
+                                        class="inline-form"
+                                        onsubmit="
+                                            return confirm(
+                                                'Are you sure you want to ban this reporter?'
+                                            );
+                                        "
                                     >
 
                                         <input
                                             type="hidden"
                                             name="reporter_id"
-                                            value="<?php
-                                            echo $reporter["Staff_ID"];
-                                            ?>"
+                                            value="<?= (int)$reporter["Staff_ID"] ?>"
                                         >
 
                                         <button
                                             type="submit"
-                                            name="reporter_action"
-                                            value="ban"
-                                            class="ban-button"
+                                            name="ban_reporter"
+                                            class="ban-btn small-button"
                                         >
                                             Ban Reporter
                                         </button>
 
                                     </form>
 
+
                                 <?php endif; ?>
+
 
                             </td>
 
                         </tr>
 
+
                     <?php endwhile; ?>
 
-                <?php else: ?>
 
-                    <tr>
+                    </tbody>
 
-                        <td colspan="7">
-                            No reporters found.
-                        </td>
+                </table>
 
-                    </tr>
+            </div>
 
-                <?php endif; ?>
 
-                </tbody>
+        <?php else: ?>
 
-            </table>
+            <p>
+                No reporters found.
+            </p>
 
-        </div>
+        <?php endif; ?>
 
     </section>
 
@@ -1754,4 +2094,4 @@ if ($count_result) {
 </body>
 
 </html>
-
+```

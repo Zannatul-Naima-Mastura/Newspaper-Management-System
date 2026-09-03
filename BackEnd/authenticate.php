@@ -74,7 +74,7 @@ if ($result->num_rows === 1) {
         $_SESSION["email"] = $admin["Email"];
         $_SESSION["role"] = "admin";
 
-        header("Location: dashboard.php");
+        header("Location: admin_dashboard.php");
         exit();
     }
 }
@@ -86,7 +86,7 @@ if ($result->num_rows === 1) {
 |--------------------------------------------------------------------------
 */
 
-$sql = "SELECT Staff_ID, Name, Email, Password
+$sql = "SELECT Staff_ID, Name, Email, Password, Status
         FROM REPORTER
         WHERE Email = ?";
 
@@ -101,6 +101,17 @@ if ($result->num_rows === 1) {
     $reporter = $result->fetch_assoc();
 
     if ($password === $reporter["Password"]) {
+
+	if (strtolower($reporter["Status"]) === "banned") {
+	
+	        echo "<script>
+       	         alert('Your reporter account has been banned.');
+       	         window.location.href='login.php';
+       	       </script>";
+
+       		 exit();
+    	}
+
 
         $_SESSION["user_id"] = $reporter["Staff_ID"];
         $_SESSION["name"] = $reporter["Name"];

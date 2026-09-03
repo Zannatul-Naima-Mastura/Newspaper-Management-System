@@ -1,4 +1,3 @@
-```php
 <?php
 
 session_start();
@@ -2094,4 +2093,4 @@ $reporters = $conn->query("
 </body>
 
 </html>
-```
+
